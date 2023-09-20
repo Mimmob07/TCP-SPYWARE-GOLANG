@@ -9,9 +9,9 @@ import (
 	"strings"
 )
 
-const (
-	HOST       = "localhost"
-	PORT       = "8080"
+var (
+	HOST       = os.Args[1]
+	PORT       = os.Args[2]
 	TYPE       = "tcp"
 	BUFFERSIZE = 1024
 )
