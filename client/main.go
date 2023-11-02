@@ -1,27 +1,25 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
-	"os/exec"
-	"runtime"
 	"strconv"
-	"strings"
 )
 
 const (
 	HOST       = "localhost"
 	PORT       = "8080"
 	TYPE       = "tcp"
+	PATH       = "dummyfile.txt"
 	BUFFERSIZE = 1024
 )
 
 var logger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
 
-func fillString(retunString string, toLength int) string { // Fill string with bytes
+// Fill string with bytes
+func fillString(retunString string, toLength int) string {
 	for {
 		lengtString := len(retunString)
 		if lengtString < toLength {
@@ -39,42 +37,61 @@ func main() {
 	handleError(err)
 	defer conn.Close()
 
-	bufferFileName := make([]byte, 64)
-	bufferFileSize := make([]byte, 10)
+	SendFile(conn, PATH)
 
-	conn.Write([]byte(fillString(runtime.GOOS, 9))) // max byte array length of 9
+	// bufferFileName := make([]byte, 64)
+	// bufferFileSize := make([]byte, 10)
 
-	conn.Read(bufferFileSize)
-	fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
+	// // max byte array length of 9
+	// conn.Write([]byte(fillString(runtime.GOOS, 9)))
 
-	conn.Read(bufferFileName)
-	fileName := strings.Trim(string(bufferFileName), ":")
+	// conn.Read(bufferFileSize)
+	// fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
 
-	createPayload, err := os.Create(fileName)
+	// conn.Read(bufferFileName)
+	// fileName := strings.Trim(string(bufferFileName), ":")
+
+	// createPayload, err := os.Create(fileName)
+	// handleError(err)
+
+	// var receivedBytes int64
+
+	// for {
+	// 	if (fileSize - receivedBytes) < BUFFERSIZE {
+	// 		io.CopyN(createPayload, conn, (fileSize - receivedBytes))
+	// 		conn.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
+	// 		break
+	// 	}
+	// 	io.CopyN(createPayload, conn, BUFFERSIZE)
+	// 	receivedBytes += BUFFERSIZE
+	// }
+	// logger.Println("Received file completely!")
+	// createPayload.Close()
+	// if runtime.GOOS == "windows" {
+	// 	cmd, err := exec.Command(fileName).Output()
+	// 	handleError(err)
+	// 	fmt.Println(string(cmd))
+	// } else if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
+	// 	cmd, err := exec.Command("./" + fileName).Output()
+	// 	handleError(err)
+	// 	fmt.Println(string(cmd))
+	// }
+}
+
+func SendFile(conn net.Conn, path string) {
+	payload, err := os.Open(path)
 	handleError(err)
-	// defer createPayload.Close()
-
-	var receivedBytes int64
-
+	fileInfo, err := payload.Stat()
+	handleError(err)
+	fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
+	sendBuffer := make([]byte, BUFFERSIZE)
+	conn.Write([]byte(fileSize))
 	for {
-		if (fileSize - receivedBytes) < BUFFERSIZE {
-			io.CopyN(createPayload, conn, (fileSize - receivedBytes))
-			conn.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
+		_, err = payload.Read(sendBuffer)
+		if err == io.EOF {
 			break
 		}
-		io.CopyN(createPayload, conn, BUFFERSIZE)
-		receivedBytes += BUFFERSIZE
-	}
-	logger.Println("Received file completely!")
-	createPayload.Close()
-	if runtime.GOOS == "windows" {
-		cmd, err := exec.Command(fileName).Output()
-		handleError(err)
-		fmt.Println(string(cmd))
-	} else if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		cmd, err := exec.Command("./" + fileName).Output()
-		handleError(err)
-		fmt.Println(string(cmd))
+		conn.Write(sendBuffer)
 	}
 }
 
