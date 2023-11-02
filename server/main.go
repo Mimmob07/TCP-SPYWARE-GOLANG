@@ -31,18 +31,20 @@ func handleError(err error) {
 func HandleConnection(conn net.Conn) {
 	defer conn.Close()
 
+	// Recieve raw file size and clean it up
 	fileSizeBuffer := make([]byte, 10)
 	conn.Read(fileSizeBuffer)
 	fileSize, err := strconv.ParseInt(strings.ReplaceAll(string(fileSizeBuffer), ":", ""), 10, 64)
 	handleError(err)
 	logger.Printf("File being recived of size %v bytes\n", fileSize)
 
+	// Prepare file to be written to
 	var fileName string = OUTPUTPATH + "data" + fmt.Sprint(count) + ".txt"
-
 	createPayload, err := os.Create(fileName)
 	handleError(err)
 	defer createPayload.Close()
 
+	// Recieve file BUFFERSIZE bytes at a time
 	var receivedBytes int64
 	for {
 		if (fileSize - receivedBytes) < BUFFERSIZE {
@@ -57,11 +59,13 @@ func HandleConnection(conn net.Conn) {
 }
 
 func main() {
+	// Start server
 	server, err := net.Listen(TYPE, HOST+":"+PORT)
 	handleError(err)
 	defer server.Close()
 	logger.Println("Server is now listening")
 
+	// Handle connections
 	for {
 		conn, err := server.Accept()
 		logger.Println("New connection accepted")
